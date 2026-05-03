@@ -1,0 +1,734 @@
+--- Cell 0 (markdown) ---
+# Packages
+--- Cell 1 (code) ---
+# %pip install sklearn
+# %pip install pandas
+# %pip install numpy
+# %pip install matplotlib
+# %pip i...
+--- Cell 2 (markdown) ---
+# Imports
+--- Cell 3 (code) ---
+import glob
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import panda...
+--- Cell 4 (markdown) ---
+# Functions
+--- Cell 5 (markdown) ---
+https://scikit-learn.org/stable/auto_examples/applications/plot_cyclical_feature_engineering.html#tr...
+--- Cell 6 (code) ---
+def sin_transformer(period):
+    return FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi)...
+--- Cell 7 (code) ---
+def sklearnEvaluate(model, X, y, cv, model_prop=None, model_step=None):
+    cv_results = cross_valid...
+--- Cell 8 (code) ---
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_tf_style_predictions(X_3D, y_3D, model,...
+--- Cell 9 (code) ---
+def max_missing_sequence(ser):
+    # 1. Mask for null values
+    is_null = ser.isnull()
+
+    # 2. Gr...
+--- Cell 10 (markdown) ---
+# Download Data
+--- Cell 11 (code) ---
+!wget https://archive.ics.uci.edu/static/public/501/beijing+multi+site+air+quality+data.zip
+--- Cell 12 (code) ---
+!unzip beijing+multi+site+air+quality+data.zip
+--- Cell 13 (code) ---
+!unzip PRSA2017_Data_20130301-20170228.zip
+--- Cell 14 (markdown) ---
+# Load Dataframes
+--- Cell 15 (code) ---
+stations_to_keep = [
+  'Aotizhongxin',
+  'Dongsi',
+  # 'Guanyuan',
+  # 'Nongzhanguan',
+  # 'Tiantan'...
+--- Cell 16 (code) ---
+# Find all files that start with "PRSA_Data" and end with ".csv"
+# file_paths = glob.glob("./beijing...
+--- Cell 17 (markdown) ---
+# CONSTANTS
+--- Cell 18 (code) ---
+FEATURE_COLS = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3', 'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM', '...
+--- Cell 19 (code) ---
+categorical_columns
+--- Cell 20 (markdown) ---
+# Pipelines
+--- Cell 21 (code) ---
+KNNImputerPipe = Pipeline([
+    ('imputer', KNNImputer(n_neighbors=5)),
+])
+--- Cell 22 (code) ---
+one_hot_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+--- Cell 23 (code) ---
+cyclicTransformer = ColumnTransformer(
+    transformers=[
+        ("categorical", one_hot_encoder, c...
+--- Cell 24 (code) ---
+# data_pipeline = ColumnTransformer([
+#     ('numerical', num_pipeline, CHEM_COLUMNS),
+#     ('categ...
+--- Cell 25 (markdown) ---
+# Data Exploration
+--- Cell 26 (markdown) ---
+df_all.to_csv("PRSA_Data_20130301-20170228.csv")
+--- Cell 27 (code) ---
+df.info()
+--- Cell 28 (code) ---
+# 1. Pivot for all target columns
+# Columns will now be (variable, station) - e.g., ('temp', 'Statio...
+--- Cell 29 (markdown) ---
+## Do we have missing data?
+--- Cell 30 (code) ---
+df.isnull().sum().sort_values(ascending=False)
+--- Cell 31 (code) ---
+longest_gaps = df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+--- Cell 32 (code) ---
+station_reliability = df.isnull().sum(axis=1).groupby(df['station']).sum().sort_values()
+
+print(stat...
+--- Cell 33 (code) ---
+
+--- Cell 34 (code) ---
+# Calculate the percentage of missing values per station
+missing_pct = df.groupby('station').apply(l...
+--- Cell 35 (code) ---
+# df_with_nans = df[df.isnull().any(axis=1)]
+# df_with_nans
+--- Cell 36 (markdown) ---
+## Handling Missing Data - Forward-fill missing values
+--- Cell 37 (markdown) ---
+It's wrong to do this here
+--- Cell 38 (markdown) ---
+Forward fill and backward fill are methods used to handle missing values in time series data by prop...
+--- Cell 39 (markdown) ---
+df_all = (
+    df_all
+    .set_index('station')
+    .groupby('station')
+    .ffill()
+    .bfill()
+  ...
+--- Cell 40 (code) ---
+df.isnull().sum().sort_values(ascending=False)
+--- Cell 41 (code) ---
+df.columns.to_list()
+--- Cell 42 (code) ---
+df.info()
+--- Cell 43 (code) ---
+df.describe().transpose()
+
+--- Cell 44 (markdown) ---
+## Evolution of a features over time
+--- Cell 45 (code) ---
+features = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3','TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM']
+df_sin...
+--- Cell 46 (code) ---
+_ = df_daily.plot(subplots=True, figsize=(10, 20))
+--- Cell 47 (code) ---
+_ = df_daily[:164].plot(subplots=True, figsize=(10, 20))
+--- Cell 48 (markdown) ---
+## Density Distribution
+--- Cell 49 (code) ---
+scaler = StandardScaler()
+df_daily_scaled  = pd.DataFrame(scaler.fit_transform(df_daily), columns=df...
+--- Cell 50 (code) ---
+df_daily_scaled.plot.hist(subplots=True, figsize=(10, 20), bins=100)
+--- Cell 51 (code) ---
+pd.plotting.scatter_matrix(df_daily_scaled, alpha=0.2, figsize=(20, 20))
+--- Cell 52 (markdown) ---
+## Feature Correlation
+--- Cell 53 (markdown) ---
+### Pearson Correlation
+--- Cell 54 (code) ---
+numeric_cols = [
+    'PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3',
+    'TEMP', 'PRES', 'DEWP', 'RAIN', ...
+--- Cell 55 (markdown) ---
+### Spearman Correlation
+--- Cell 56 (code) ---
+corr_matrix = df[numeric_cols].corr(method='spearman')
+
+fig, ax = plt.subplots(figsize=(12, 10))
+sns...
+--- Cell 57 (markdown) ---
+## Time Series Decomposition
+
+--- Cell 58 (code) ---
+df_single_station = df.copy()
+df_single_station.set_index("datetime", inplace=True)
+df_daily = df_si...
+--- Cell 59 (code) ---
+df_single_station = df.copy()
+df_single_station.set_index("datetime", inplace=True)
+df_daily = df_si...
+--- Cell 60 (markdown) ---
+# Data Preprocessing
+--- Cell 61 (markdown) ---
+## Cross-Sectional Imputation for Missing Data using Data from the Same Date
+--- Cell 62 (markdown) ---
+https://pmc.ncbi.nlm.nih.gov/articles/PMC7646951/
+--- Cell 63 (code) ---
+# Quick report of remaining missing values in your target columns
+print(df[CHEM_COLUMNS].isnull().su...
+--- Cell 64 (code) ---
+longest_gaps = df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+--- Cell 65 (code) ---
+# Run this BEFORE you start the loop
+# for col in FEATURE_COLS:
+    # df[f'{col}_is_imputed'] = df[c...
+--- Cell 66 (code) ---
+for col in CHEM_COLUMNS:
+    # Pass 1: Spatial Fill (Neighboring stations on same day)
+    # This fi...
+--- Cell 67 (code) ---
+# Quick report of remaining missing values in your target columns
+print(df[CHEM_COLUMNS].isnull().su...
+--- Cell 68 (code) ---
+longest_gaps = df[CHEM_COLUMNS].apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False...
+--- Cell 69 (code) ---
+station_reliability = df[['CO', 'station']].isnull().sum(axis=1).groupby(df['station']).sum().sort_v...
+--- Cell 70 (code) ---
+# df[df['station'] == 'Nongzhanguan'].to_csv("PRSA_Data_20130301-20170228_Nongzhanguan_cleaned.csv")
+--- Cell 71 (code) ---
+station_reliability = df.isnull().sum(axis=1).groupby(df['station']).sum().sort_values()
+
+print(stat...
+--- Cell 72 (code) ---
+# 1. Pivot for all target columns
+# Columns will now be (variable, station) - e.g., ('temp', 'Statio...
+--- Cell 73 (markdown) ---
+## Splitting the Data for Training, Test, Validation
+--- Cell 74 (markdown) ---
+the dataset was divided into a training set, test set, and validation set at a ratio of 6:2:2. sourc...
+--- Cell 75 (markdown) ---
+The prediction time units used the multiple air-pollution factor values of the first 8, 16, and 24 h...
+--- Cell 76 (markdown) ---
+https://deeplearningwithpython.io/chapters/chapter13_timeseries-forecasting/
+https://github.com/fcho...
+--- Cell 77 (markdown) ---
+2.3. Training and evaluation procedure
+The full daily dataset for each sensor is split chronological...
+--- Cell 78 (markdown) ---
+
+--- Cell 79 (code) ---
+samples = df.shape[0]
+--- Cell 80 (code) ---
+df.select_dtypes(include=np.number).columns
+--- Cell 81 (code) ---
+# num_train_samples = int(0.6 * samples)
+# num_val_samples = int(0.2 * samples)
+# num_test_samples =...
+--- Cell 82 (code) ---
+
+--- Cell 83 (code) ---
+# train_df = df[:num_train_samples]
+--- Cell 84 (code) ---
+# val_df = df[num_train_samples:num_train_samples + num_val_samples]
+# test_df = df[num_train_sample...
+--- Cell 85 (code) ---
+df = df.sort_values(['station', 'datetime'])
+
+train_list = []
+val_list = []
+test_list = []
+
+# 2. Ite...
+--- Cell 86 (code) ---
+
+--- Cell 87 (markdown) ---
+## Impute Missing Values
+--- Cell 88 (markdown) ---
+When imputing values for validation and testing dataset, do you treat them seperately from the train...
+--- Cell 89 (code) ---
+def impute_knn(df, k=5):
+    num = df.select_dtypes(include=np.number).columns
+    out = df.copy()
+ ...
+--- Cell 90 (code) ---
+df_imputed = train_df
+
+knn_imputer = KNNImputer(n_neighbors=5)
+
+df_imputed[CHEM_COLUMNS] = knn_imput...
+--- Cell 91 (code) ---
+# Quick report of remaining missing values in your target columns
+print(df_imputed[FEATURE_COLS].isn...
+--- Cell 92 (code) ---
+longest_gaps = df_imputed.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+--- Cell 93 (code) ---
+train_df['wd'] = train_df.groupby('station')['wd'].ffill(limit=5)
+--- Cell 94 (code) ---
+print(df_imputed[FEATURE_COLS].isnull().sum().sort_values(ascending=False))
+--- Cell 95 (code) ---
+# Impute missing values in validation and test sets using the KNN logic
+
+val_df[CHEM_COLUMNS] = knn_...
+--- Cell 96 (code) ---
+# Quick report of remaining missing values in your target columns
+print("Validation Dataset")
+print(...
+--- Cell 97 (code) ---
+longest_gaps = test_df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+--- Cell 98 (code) ---
+test_df['wd'] = test_df.groupby('station')['wd'].ffill(limit=5)
+--- Cell 99 (code) ---
+print(f"NaNs remaining in test_df: {test_df.isnull().sum().sum()}")
+--- Cell 100 (markdown) ---
+## Extreme Values
+--- Cell 101 (markdown) ---
+The processing of extreme values is also crucial. For example, when collecting data from sensors, so...
+--- Cell 102 (code) ---
+# def remove_3sigma(df, lower=0):
+#     num = df.select_dtypes(include=np.number).columns
+#     out ...
+--- Cell 103 (code) ---
+df_imputed[CHEM_COLUMNS].describe().transpose()
+--- Cell 104 (code) ---
+# df_clean[CHEM_COLUMNS].describe().transpose()
+--- Cell 105 (markdown) ---
+## Using Winsorizing to Replace Outliers
+--- Cell 106 (markdown) ---
+In statistics, the 68–95–99.7 rule, also known as the empirical rule or 68–95–99.7 rule for a normal...
+--- Cell 107 (markdown) ---
+https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
+--- Cell 108 (code) ---
+from scipy.stats.mstats import winsorize
+
+s_train = train_df[train_df['station'] == stations_to_keep...
+--- Cell 109 (code) ---
+df_winsorized[CHEM_COLUMNS].describe().transpose()
+--- Cell 110 (markdown) ---
+
+--- Cell 111 (code) ---
+# df_imputed[CHEM_COLUMNS] = df_winsorized
+--- Cell 112 (code) ---
+
+--- Cell 113 (markdown) ---
+## One-Hot Encoding — Wind Direction
+--- Cell 114 (code) ---
+# df_encoded = pd .get_dummies(df, columns=['station', 'wd'], drop_first=True)
+# df_encoded['month_s...
+--- Cell 115 (code) ---
+import re
+
+new = cyclicTransformer.fit_transform(df_winsorized).rename(columns=lambda x: re.sub('rem...
+--- Cell 116 (code) ---
+new.describe().transpose()
+--- Cell 117 (code) ---
+new.info()
+--- Cell 118 (code) ---
+new = new.drop(['day', 'year', "datetime", 'No'], axis = 1)
+--- Cell 119 (markdown) ---
+## Normalisation
+--- Cell 120 (code) ---
+# TARGET       = 'PM2.5'
+# # FEATURE_COLS = [c for c in new.columns if c != TARGET]
+
+# scaler_X = Mi...
+--- Cell 121 (markdown) ---
+# Preporcessing for Validation & Testing Datasets
+--- Cell 122 (markdown) ---
+# Normalization using MixMaxScaler
+--- Cell 123 (code) ---
+mmScaler = MinMaxScaler()
+mmScaler.set_output(transform='pandas')
+
+new[CHEM_COLUMNS] = mmScaler.fit_...
+--- Cell 124 (code) ---
+new.describe().transpose()
+--- Cell 125 (code) ---
+val_df[CHEM_COLUMNS] = mmScaler.transform(val_df[CHEM_COLUMNS])
+--- Cell 126 (code) ---
+val_df = cyclicTransformer.transform(val_df).rename(columns=lambda x: re.sub('remainder__','',x), in...
+--- Cell 127 (code) ---
+val_df.drop(['day', 'year', "datetime", 'No'], axis=1, inplace=True)
+
+--- Cell 128 (code) ---
+val_df.info()
+--- Cell 129 (code) ---
+test_df[CHEM_COLUMNS] = mmScaler.transform(test_df[CHEM_COLUMNS])
+--- Cell 130 (code) ---
+test_df = cyclicTransformer.transform(test_df).rename(columns=lambda x: re.sub('remainder__','',x), ...
+--- Cell 131 (code) ---
+test_df.drop(['day', 'year', "datetime", 'No'], axis=1, inplace=True)
+--- Cell 132 (code) ---
+df_clean = new
+--- Cell 133 (code) ---
+df_baseline = df.copy()
+df_baseline[CHEM_COLUMNS] = knn_imputer.transform(df_baseline[CHEM_COLUMNS])
+--- Cell 134 (code) ---
+df_baseline.head()
+--- Cell 135 (markdown) ---
+# Cross Validation: Create Sequences for Deep Learning
+--- Cell 136 (markdown) ---
+# Create Keras Batch Datasets
+--- Cell 137 (code) ---
+NN_EATURES = df_clean.columns.to_list()
+--- Cell 138 (code) ---
+
+--- Cell 139 (code) ---
+NN_EATURES.remove('station')
+--- Cell 140 (code) ---
+NN_EATURES
+--- Cell 141 (code) ---
+df_clean[NN_EATURES] = df_clean[NN_EATURES].astype(np.float32)
+val_df[NN_EATURES] = val_df[NN_EATURE...
+--- Cell 142 (code) ---
+df_clean.info()
+--- Cell 143 (code) ---
+print(f"NaNs in train_df: {df_clean.isnull().sum().sum()}")
+print(f"NaNs in val_df:   {val_df.isnull...
+--- Cell 144 (code) ---
+sampling_rate = 1 # Observations will be sampled at every data point one per hour
+sequence_length = ...
+--- Cell 145 (code) ---
+
+TARGET = 'PM2.5'
+
+def prepare_multi_station_ds(df, is_training=True):
+    station_datasets = []
+
+  ...
+--- Cell 146 (code) ---
+# train_dataset = keras.utils.timeseries_dataset_from_array(
+#     df_clean[:-delay],
+#     targets=...
+--- Cell 147 (code) ---
+# # Re-create the Keras datasets with the cleaned data
+# import keras
+
+# train_dataset = keras.utils...
+--- Cell 148 (markdown) ---
+### Debugging NaN Loss
+Let's check if there are any remaining NaN values in the validation and test ...
+--- Cell 149 (markdown) ---
+### Reusable Preprocessing Pipeline
+
+To ensure consistency and avoid the data leakage or missing val...
+--- Cell 150 (code) ---
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class Winsorizer(BaseEstimator, Transforme...
+--- Cell 151 (code) ---
+
+--- Cell 152 (markdown) ---
+# Baseline Models
+--- Cell 153 (markdown) ---
+## Naive Forecast, Moving Average Forecast, Seasonal Naive Forecast
+--- Cell 154 (code) ---
+df_naive_baseline = df_baseline.copy()
+--- Cell 155 (code) ---
+grouped = df_baseline['PM2.5']
+
+# 1. Naive Forecast (Shift by 1 hour, grouped by station)
+df_naive_b...
+--- Cell 156 (markdown) ---
+df_all['Is_Hazardous'] = (df_all['PM2.5'] > 75).astype(int)
+df_all['Naive_Is_Hazardous'] = (df_all['...
+--- Cell 157 (code) ---
+# 1. Isolate one station and make sure it's sorted chronologically
+df_station = df_naive_baseline.co...
+--- Cell 158 (code) ---
+df_stations = df_baseline.sort_values(by=['station', 'datetime'])
+
+--- Cell 159 (code) ---
+for _, group in df_stations.groupby('station'):
+
+  grouped = group['PM2.5']
+
+  # 1. Naive Forecast (...
+--- Cell 160 (code) ---
+df_stations['Naive_Forecast'] = df_stations.groupby('station')['PM2.5'].shift(1)
+df_stations['Moving...
+--- Cell 161 (code) ---
+results = []
+
+# Assuming df_stations is a GroupBy object: df.groupby('station_id')
+for station_id, g...
+--- Cell 162 (code) ---
+df_results
+--- Cell 163 (code) ---
+# 1. Aggregate the results to get the mean MAE per horizon across all stations
+avg_results = df_resu...
+--- Cell 164 (markdown) ---
+## StatsForecast Models
+--- Cell 165 (code) ---
+df_baseline.describe().transpose()
+--- Cell 166 (code) ---
+columns_to_drop = [col for col in df_baseline.columns.to_list() if col not in ["PM2.5", "station", "...
+--- Cell 167 (code) ---
+from statsforecast import StatsForecast
+
+horizon = 24 # 24 hour period
+
+models = [Naive(), HistoricA...
+--- Cell 168 (code) ---
+preds.head()
+--- Cell 169 (code) ---
+
+--- Cell 170 (code) ---
+from utilsforecast.losses import mae
+
+from utilsforecast.evaluation import evaluate
+
+
+evaluation = e...
+--- Cell 171 (code) ---
+evaluation = evaluation.drop(columns='station').groupby('metric').mean().reset_index()
+
+
+methods = e...
+--- Cell 172 (code) ---
+plt.figure(figsize=(10, 6))
+bars = plt.bar(methods, values, color=['#4C72B0', '#55A868', '#C44E52', ...
+--- Cell 173 (markdown) ---
+### a
+--- Cell 174 (code) ---
+plot_series(test, forecasts_df=preds, max_insample_length=24, id_col="station", time_col='datetime',...
+--- Cell 175 (markdown) ---
+# Time-based Cross-Validation
+--- Cell 176 (code) ---
+ts_cv = TimeSeriesSplit(
+    n_splits=5,
+    gap=48,
+    max_train_size=10000,
+    test_size=1000,
+)
+--- Cell 177 (markdown) ---
+# Prep for Training
+--- Cell 178 (markdown) ---
+Rescale the target variable (PM2.5) to predict a relative demand so that the mean absolute error is ...
+--- Cell 179 (markdown) ---
+# Dimensionality Reduction
+--- Cell 180 (code) ---
+# T-SNE Implementation
+# X_reduced_tsne = TSNE(n_components=3, random_state=69420).fit_transform(df_...
+--- Cell 181 (code) ---
+df_components = df_baseline[df['station'] == stations_to_keep[0]][FEATURE_COLS].drop('wd', axis=1)
+--- Cell 182 (code) ---
+df_components
+--- Cell 183 (code) ---
+# PCA Implementation
+X_reduced_pca = PCA(n_components=4, random_state=69420).fit_transform(df_compon...
+--- Cell 184 (code) ---
+# TruncatedSVD
+X_reduced_svd = TruncatedSVD(
+    n_components=len(df_components.columns.to_list()),
+...
+--- Cell 185 (code) ---
+f, (ax2, ax3) = plt.subplots(2, 1, figsize=(9,16))
+# labels = ['No Fraud', 'Fraud']
+f.suptitle('Clus...
+--- Cell 186 (markdown) ---
+# Time Lag Experiment
+--- Cell 187 (code) ---
+from scipy.stats import pearsonr
+import warnings
+
+# ── Config ──────────────────────────────────────...
+--- Cell 188 (code) ---
+# ── 1. Compute Pearson r at each lag for each feature ─────────────────────────
+# Work on a single ...
+--- Cell 189 (code) ---
+# ── 2. Find optimal lag per feature (highest |r|) ─────────────────────────────
+best_lags = (
+    r...
+--- Cell 190 (code) ---
+# ── 3. Heatmap — Pearson r across all features and lags ──────────────────────
+pivot = results_df.p...
+--- Cell 191 (code) ---
+# ── 4. Line plot — correlation decay curves per feature ──────────────────────
+fig, ax = plt.subplo...
+--- Cell 192 (markdown) ---
+# Tree Models
+--- Cell 193 (code) ---
+categorical_columns = df.columns[df.dtypes == "category"]
+print("Categorical features:", categorical...
+--- Cell 194 (code) ---
+# from sklearn.pipeline import make_pipeline
+# from sklearn.linear_model import RidgeCV
+
+
+# alphas =...
+--- Cell 195 (markdown) ---
+
+--- Cell 196 (code) ---
+df_baseline.info()
+--- Cell 197 (code) ---
+df_baseline.iloc[:, 1:22].head()
+--- Cell 198 (code) ---
+df_tree = df_baseline.iloc[:, 1:22].drop('datetime', axis=1)
+--- Cell 199 (markdown) ---
+# Histogram-based Gradient Boosting Regression Tree
+--- Cell 200 (markdown) ---
+https://scikit-learn.org/stable/auto_examples/applications/plot_cyclical_feature_engineering.html#gr...
+--- Cell 201 (code) ---
+gbrt = HistGradientBoostingRegressor(categorical_features="from_dtype", random_state=42)
+--- Cell 202 (code) ---
+sklearnEvaluate(gbrt, df_tree.drop('PM2.5', axis = 1), df_tree['PM2.5'], cv=ts_cv, model_prop="n_ite...
+--- Cell 203 (code) ---
+
+--- Cell 204 (code) ---
+
+--- Cell 205 (markdown) ---
+# Random Forest Regressor
+--- Cell 206 (code) ---
+rf_model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+--- Cell 207 (code) ---
+sklearnEvaluate(rf_model, df_tree.drop(['PM2.5', 'wd', 'station'], axis = 1), df_tree['PM2.5'], cv=t...
+--- Cell 208 (code) ---
+
+--- Cell 209 (code) ---
+
+--- Cell 210 (markdown) ---
+# Deep Learning
+--- Cell 211 (markdown) ---
+# RNN, LSTM, CNN
+--- Cell 212 (code) ---
+WINDOW     = 24   # use the past 24 hours as context
+THRESHOLD  = 75
+BATCH_SIZE = 128
+EPOCHS     = 3...
+--- Cell 213 (code) ---
+import sys
+
+def get_size(obj, seen=None):
+    size = sys.getsizeof(obj)
+    if seen is None: seen = ...
+--- Cell 214 (code) ---
+import gc
+
+# List of DataFrames that are likely no longer needed after preprocessing
+vars_to_delete ...
+--- Cell 215 (code) ---
+df = None
+df_stations = None
+df_naive_baseline = None
+df_baseline = None
+df_imputed = None
+df_winsor...
+--- Cell 216 (code) ---
+globals()
+--- Cell 217 (code) ---
+# # ── 2. Scale features (required for neural nets) ─────────────────────────────
+# scaler    = Stan...
+--- Cell 218 (code) ---
+# # ── 3. Build sliding windows ──────────────────────────────────────────────────
+# # Each sample b...
+--- Cell 219 (code) ---
+df_clean.shape()
+--- Cell 220 (code) ---
+n_steps    = sequence_length
+n_features = len(NN_EATURES)
+
+print("n_steps:", n_steps)
+print("n_featu...
+--- Cell 221 (markdown) ---
+# Model Definitions
+--- Cell 222 (code) ---
+METRICS = ['mae', 'mse', 'mape'] # 'rmse',
+--- Cell 223 (code) ---
+# ── 4. Model definitions ──────────────────────────────────────────────────────
+def build_rnn():
+  ...
+--- Cell 224 (markdown) ---
+## Not using
+--- Cell 225 (code) ---
+# ── 5. Time-series CV ─────────────────────────────────────────────────────────
+metric_keys = ['MAE...
+--- Cell 226 (code) ---
+# ── 6. Merge with existing results and plot ───────────────────────────────────
+nn_results_df = pd....
+--- Cell 227 (code) ---
+# ── 5. Time-series CV ─────────────────────────────────────────────────────────
+metric_keys = ['MAE...
+--- Cell 228 (markdown) ---
+# chapter13_timeseries-forecasting
+--- Cell 229 (code) ---
+
+--- Cell 230 (code) ---
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model ...
+--- Cell 231 (code) ---
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model ...
+--- Cell 232 (code) ---
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model ...
+--- Cell 233 (code) ---
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18...
+--- Cell 234 (code) ---
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18...
+--- Cell 235 (code) ---
+x_test.shape
+--- Cell 236 (code) ---
+y_pred.shape
+--- Cell 237 (code) ---
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18...
+--- Cell 238 (markdown) ---
+# Overfitting
+--- Cell 239 (code) ---
+from tensorflow.keras.regularizers import l1, l2, l1_l2
+from tensorflow.keras.layers import BatchNor...
+--- Cell 240 (code) ---
+# ── Experiment variants ───────────────────────────────────────────────────────
+def build_baseline(...
+--- Cell 241 (code) ---
+
+variants = {
+    'Baseline (no reg)': build_baseline,
+    'Reduced Size':      build_reduced,
+    '...
+--- Cell 242 (code) ---
+# ── Run experiment: one fold only for speed, use last fold for fair comparison ─
+train_idx, test_id...
+--- Cell 243 (code) ---
+# ── Results table ─────────────────────────────────────────────────────────────
+exp_df = pd.DataFra...
+--- Cell 244 (code) ---
+# ── Plot 2: F1 comparison bar chart ──────────────────────────────────────────
+exp_df[['F1', 'Preci...
+--- Cell 245 (code) ---
+
+--- Cell 246 (code) ---
+
+--- Cell 247 (markdown) ---
+# Hyper-parameter Training & Selection
+--- Cell 248 (code) ---
+from sklearn.model_selection import GridSearchCV
+
+# Define the model
+rf = RandomForestRegressor(rand...
