@@ -1,0 +1,782 @@
+Cell 1:
+# %pip install sklearn
+# %pip install pandas
+# %pip install numpy
+# %pip install matplotlib
+# %pip install seaborn
+
+Cell 3:
+import glob
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+Cell 6:
+def sin_transformer(period):
+    return FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi))
+
+
+def cos_transformer(period):
+
+Cell 7:
+def sklearnEvaluate(model, X, y, cv, model_prop=None, model_step=None):
+    cv_results = cross_validate(
+        model,
+        X,
+        y,
+
+Cell 8:
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_tf_style_predictions(X_3D, y_3D, model, feature_index=0, num_plots=3):
+    """
+
+Cell 9:
+def max_missing_sequence(ser):
+    # 1. Mask for null values
+    is_null = ser.isnull()
+
+    # 2. Group consecutive booleans
+
+Cell 11:
+!wget https://archive.ics.uci.edu/static/public/501/beijing+multi+site+air+quality+data.zip
+Cell 12:
+!unzip beijing+multi+site+air+quality+data.zip
+Cell 13:
+!unzip PRSA2017_Data_20130301-20170228.zip
+Cell 15:
+stations_to_keep = [
+  'Aotizhongxin',
+  'Dongsi',
+  # 'Guanyuan',
+  # 'Nongzhanguan',
+
+Cell 16:
+# Find all files that start with "PRSA_Data" and end with ".csv"
+# file_paths = glob.glob("./beijing+multi+site+air+quality+data/PRSA_Data_20130301-20170228/PRSA_Data_*Nongzhanguan*.csv")
+file_paths = glob.glob("./PRSA_Data_20130301-20170228/PRSA_Data_*.csv")
+
+# Read all into a list
+
+Cell 18:
+FEATURE_COLS = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3', 'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM', 'wd']
+CHEM_COLUMNS = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3', 'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM']
+categorical_columns = ['wd'] #df.columns[df.dtypes == "category"]
+NUMERIC_columns = df.columns[df.dtypes == "numeric"]
+
+
+Cell 19:
+categorical_columns
+Cell 21:
+KNNImputerPipe = Pipeline([
+    ('imputer', KNNImputer(n_neighbors=5)),
+])
+Cell 22:
+one_hot_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+Cell 23:
+cyclicTransformer = ColumnTransformer(
+    transformers=[
+        ("categorical", one_hot_encoder, categorical_columns),
+        ("month_sin", sin_transformer(12), ["month"]),
+        ("month_cos", cos_transformer(12), ["month"]),
+
+Cell 24:
+# data_pipeline = ColumnTransformer([
+#     ('numerical', num_pipeline, CHEM_COLUMNS),
+#     ('categorical', OneHotEncoder(), cat_vars),
+
+# ])
+Cell 27:
+df.info()
+Cell 28:
+# 1. Pivot for all target columns
+# Columns will now be (variable, station) - e.g., ('temp', 'Station_1')
+multi_pivot = df.pivot(index='datetime', columns='station', values=CHEM_COLUMNS)
+
+# 2. Calculate the massive correlation matrix
+
+Cell 30:
+df.isnull().sum().sort_values(ascending=False)
+Cell 31:
+longest_gaps = df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+Cell 32:
+station_reliability = df.isnull().sum(axis=1).groupby(df['station']).sum().sort_values()
+
+print(station_reliability)
+Cell 33:
+
+Cell 34:
+# Calculate the percentage of missing values per station
+missing_pct = df.groupby('station').apply(lambda x: x.isnull().mean().mean())
+
+# Get the station with the minimum percentage
+best_station_pct = missing_pct.idxmin()
+
+Cell 35:
+# df_with_nans = df[df.isnull().any(axis=1)]
+# df_with_nans
+Cell 40:
+df.isnull().sum().sort_values(ascending=False)
+Cell 41:
+df.columns.to_list()
+Cell 42:
+df.info()
+Cell 43:
+df.describe().transpose()
+
+Cell 45:
+features = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3','TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM']
+df_single_station = df # [df['station'] == 'Aotizhongxin'].copy()
+df_daily = df_single_station.set_index("datetime")
+df_daily = df_daily[features].resample('H').mean().dropna()
+Cell 46:
+_ = df_daily.plot(subplots=True, figsize=(10, 20))
+Cell 47:
+_ = df_daily[:164].plot(subplots=True, figsize=(10, 20))
+Cell 49:
+scaler = StandardScaler()
+df_daily_scaled  = pd.DataFrame(scaler.fit_transform(df_daily), columns=df_daily.columns.to_list())
+df_daily_scaled.plot.kde(subplots=True, figsize=(10, 15))
+Cell 50:
+df_daily_scaled.plot.hist(subplots=True, figsize=(10, 20), bins=100)
+Cell 51:
+pd.plotting.scatter_matrix(df_daily_scaled, alpha=0.2, figsize=(20, 20))
+Cell 54:
+numeric_cols = [
+    'PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3',
+    'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM', 'month',
+    'DayOfWeek', 'Is_Weekend', 'Is_Rush_Hour'
+]
+
+Cell 56:
+corr_matrix = df[numeric_cols].corr(method='spearman')
+
+fig, ax = plt.subplots(figsize=(12, 10))
+sns.heatmap(
+    corr_matrix,
+
+Cell 58:
+df_single_station = df.copy()
+df_single_station.set_index("datetime", inplace=True)
+df_daily = df_single_station['PM2.5'].resample('D').mean().dropna()
+
+# Decompose with both monthly (30-day) and yearly (365-day) seasonal components
+
+Cell 59:
+df_single_station = df.copy()
+df_single_station.set_index("datetime", inplace=True)
+df_daily = df_single_station['PM2.5'][:1344]
+
+# Decompose with both monthly (30-day) and yearly (365-day) seasonal components
+
+Cell 63:
+# Quick report of remaining missing values in your target columns
+print(df[CHEM_COLUMNS].isnull().sum().sort_values(ascending=False))
+Cell 64:
+longest_gaps = df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+Cell 65:
+# Run this BEFORE you start the loop
+# for col in FEATURE_COLS:
+    # df[f'{col}_is_imputed'] = df[col].isnull().astype(int)
+Cell 66:
+for col in CHEM_COLUMNS:
+    # Pass 1: Spatial Fill (Neighboring stations on same day)
+    # This fills the majority of gaps based on regional conditions
+    df[col] = df.groupby('datetime')[col].transform(lambda x: x.fillna(x.mean()))
+
+
+Cell 67:
+# Quick report of remaining missing values in your target columns
+print(df[CHEM_COLUMNS].isnull().sum().sort_values(ascending=False))
+Cell 68:
+longest_gaps = df[CHEM_COLUMNS].apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+Cell 69:
+station_reliability = df[['CO', 'station']].isnull().sum(axis=1).groupby(df['station']).sum().sort_values()
+
+print(station_reliability)
+Cell 70:
+# df[df['station'] == 'Nongzhanguan'].to_csv("PRSA_Data_20130301-20170228_Nongzhanguan_cleaned.csv")
+Cell 71:
+station_reliability = df.isnull().sum(axis=1).groupby(df['station']).sum().sort_values()
+
+print(station_reliability)
+Cell 72:
+# 1. Pivot for all target columns
+# Columns will now be (variable, station) - e.g., ('temp', 'Station_1')
+multi_pivot = df.pivot(index='datetime', columns='station', values=CHEM_COLUMNS)
+
+# 2. Calculate the massive correlation matrix
+
+Cell 79:
+samples = df.shape[0]
+Cell 80:
+df.select_dtypes(include=np.number).columns
+Cell 81:
+# num_train_samples = int(0.6 * samples)
+# num_val_samples = int(0.2 * samples)
+# num_test_samples = samples - num_train_samples - num_val_samples
+# print("num_train_samples:", num_train_samples)
+# print("num_val_samples:", num_val_samples)
+
+Cell 82:
+
+Cell 83:
+# train_df = df[:num_train_samples]
+Cell 84:
+# val_df = df[num_train_samples:num_train_samples + num_val_samples]
+# test_df = df[num_train_samples + num_val_samples:]
+Cell 85:
+df = df.sort_values(['station', 'datetime'])
+
+train_list = []
+val_list = []
+test_list = []
+
+Cell 86:
+
+Cell 89:
+def impute_knn(df, k=5):
+    num = df.select_dtypes(include=np.number).columns
+    out = df.copy()
+    out[num] = KNNImputer(n_neighbors=k).fit_transform(df[num])
+    return out
+
+Cell 90:
+df_imputed = train_df
+
+knn_imputer = KNNImputer(n_neighbors=5)
+
+df_imputed[CHEM_COLUMNS] = knn_imputer.fit_transform(df_imputed[CHEM_COLUMNS])
+
+Cell 91:
+# Quick report of remaining missing values in your target columns
+print(df_imputed[FEATURE_COLS].isnull().sum().sort_values(ascending=False))
+Cell 92:
+longest_gaps = df_imputed.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+Cell 93:
+train_df['wd'] = train_df.groupby('station')['wd'].ffill(limit=5)
+Cell 94:
+print(df_imputed[FEATURE_COLS].isnull().sum().sort_values(ascending=False))
+Cell 95:
+# Impute missing values in validation and test sets using the KNN logic
+
+val_df[CHEM_COLUMNS] = knn_imputer.transform(val_df[CHEM_COLUMNS])
+test_df[CHEM_COLUMNS] = knn_imputer.transform(test_df[CHEM_COLUMNS])
+
+
+Cell 96:
+# Quick report of remaining missing values in your target columns
+print("Validation Dataset")
+print(val_df.isnull().sum().sort_values(ascending=False))
+
+print("Testing Dataset")
+
+Cell 97:
+longest_gaps = test_df.apply(max_missing_sequence)
+longest_gaps.sort_values(ascending=False)
+Cell 98:
+test_df['wd'] = test_df.groupby('station')['wd'].ffill(limit=5)
+Cell 99:
+print(f"NaNs remaining in test_df: {test_df.isnull().sum().sum()}")
+Cell 102:
+# def remove_3sigma(df, lower=0):
+#     num = df.select_dtypes(include=np.number).columns
+#     out = df.copy(); n = 0
+#     for col in num:
+#         mu, s = out[col].mean(), out[col].std()
+
+Cell 103:
+df_imputed[CHEM_COLUMNS].describe().transpose()
+Cell 104:
+# df_clean[CHEM_COLUMNS].describe().transpose()
+Cell 108:
+from scipy.stats.mstats import winsorize
+
+s_train = train_df[train_df['station'] == stations_to_keep[0]]
+s_val   = val_df[val_df['station'] == stations_to_keep[0]]
+s_test  = test_df[test_df['station'] == stations_to_keep[0]]
+
+Cell 109:
+df_winsorized[CHEM_COLUMNS].describe().transpose()
+Cell 111:
+# df_imputed[CHEM_COLUMNS] = df_winsorized
+Cell 112:
+
+Cell 114:
+# df_encoded = pd .get_dummies(df, columns=['station', 'wd'], drop_first=True)
+# df_encoded['month_sin'] = np.sin(df_encoded['month'] / 12 * 2 * np.pi)
+# df_encoded['month_cos'] = np.cos(df_encoded['month'] / 12 * 2 * np.pi)
+# df_encoded['weekday_sin'] = np.sin(df_encoded['DayOfWeek'] / 7 * 2 * np.pi)
+# df_encoded['weekday_cos'] = np.cos(df_encoded['DayOfWeek'] / 7 * 2 * np.pi)
+
+Cell 115:
+import re
+
+new = cyclicTransformer.fit_transform(df_winsorized).rename(columns=lambda x: re.sub('remainder__','',x), inplace=False)
+
+new.rename(columns=lambda x: re.sub('categorical__','',x), inplace=True)
+Cell 116:
+new.describe().transpose()
+Cell 117:
+new.info()
+Cell 118:
+new = new.drop(['day', 'year', "datetime", 'No'], axis = 1)
+Cell 120:
+# TARGET       = 'PM2.5'
+# # FEATURE_COLS = [c for c in new.columns if c != TARGET]
+
+# scaler_X = MinMaxScaler()
+# scaler_y = MinMaxScaler()
+
+Cell 123:
+mmScaler = MinMaxScaler()
+mmScaler.set_output(transform='pandas')
+
+new[CHEM_COLUMNS] = mmScaler.fit_transform(new[CHEM_COLUMNS])
+Cell 124:
+new.describe().transpose()
+Cell 125:
+val_df[CHEM_COLUMNS] = mmScaler.transform(val_df[CHEM_COLUMNS])
+Cell 126:
+val_df = cyclicTransformer.transform(val_df).rename(columns=lambda x: re.sub('remainder__','',x), inplace=False)
+
+val_df.rename(columns=lambda x: re.sub('categorical__','',x), inplace=True)
+Cell 127:
+val_df.drop(['day', 'year', "datetime", 'No'], axis=1, inplace=True)
+
+Cell 128:
+val_df.info()
+Cell 129:
+test_df[CHEM_COLUMNS] = mmScaler.transform(test_df[CHEM_COLUMNS])
+Cell 130:
+test_df = cyclicTransformer.transform(test_df).rename(columns=lambda x: re.sub('remainder__','',x), inplace=False)
+
+test_df.rename(columns=lambda x: re.sub('categorical__','',x), inplace=True)
+Cell 131:
+test_df.drop(['day', 'year', "datetime", 'No'], axis=1, inplace=True)
+Cell 132:
+df_clean = new
+Cell 133:
+df_baseline = df.copy()
+df_baseline[CHEM_COLUMNS] = knn_imputer.transform(df_baseline[CHEM_COLUMNS])
+Cell 134:
+df_baseline.head()
+Cell 137:
+NN_EATURES = df_clean.columns.to_list()
+Cell 138:
+
+Cell 139:
+NN_EATURES.remove('station')
+Cell 140:
+NN_EATURES
+Cell 141:
+df_clean[NN_EATURES] = df_clean[NN_EATURES].astype(np.float32)
+val_df[NN_EATURES] = val_df[NN_EATURES].astype(np.float32)
+test_df[NN_EATURES] = test_df[NN_EATURES].astype(np.float32)
+Cell 142:
+df_clean.info()
+Cell 143:
+print(f"NaNs in train_df: {df_clean.isnull().sum().sum()}")
+print(f"NaNs in val_df:   {val_df.isnull().sum().sum()}")
+print(f"NaNs in test_df:  {test_df.isnull().sum().sum()}")
+
+# Display specific columns with NaNs in validation if any exist
+
+Cell 144:
+sampling_rate = 1 # Observations will be sampled at every data point one per hour
+sequence_length = 24 * 5 #  Observations will go back seven days (168 hours).
+forecast_horizon = 24
+delay = sampling_rate * (sequence_length + forecast_horizon - 1) # The target for a sequence will be the PM2.5 24 hours after the end of the sequence.
+batch_size = 64
+Cell 145:
+
+TARGET = 'PM2.5'
+
+def prepare_multi_station_ds(df, is_training=True):
+    station_datasets = []
+
+Cell 146:
+# train_dataset = keras.utils.timeseries_dataset_from_array(
+#     df_clean[:-delay],
+#     targets=df_clean['PM2.5'][delay:],
+#     sampling_rate=sampling_rate,
+#     sequence_length=sequence_length,
+
+Cell 147:
+# # Re-create the Keras datasets with the cleaned data
+# import keras
+
+# train_dataset = keras.utils.timeseries_dataset_from_array(
+#     df_clean[:-delay],
+
+Cell 150:
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class Winsorizer(BaseEstimator, TransformerMixin):
+    """Custom transformer to apply winsorization to specified columns."""
+    def __init__(self, limits=[0.003, 0.003]):
+
+Cell 151:
+
+Cell 154:
+df_naive_baseline = df_baseline.copy()
+Cell 155:
+grouped = df_baseline['PM2.5']
+
+# 1. Naive Forecast (Shift by 1 hour, grouped by station)
+df_naive_baseline['Naive_Forecast'] = grouped.shift(1)
+
+
+Cell 157:
+# 1. Isolate one station and make sure it's sorted chronologically
+df_station = df_naive_baseline.copy() #[df['station'] == 'Aotizhongxin'].copy()
+df_station = df_station.sort_values('datetime').reset_index(drop=True)
+
+# 2. Set up lists to store the MAE for each horizon (1 to 24)
+
+Cell 158:
+df_stations = df_baseline.sort_values(by=['station', 'datetime'])
+
+Cell 159:
+for _, group in df_stations.groupby('station'):
+
+  grouped = group['PM2.5']
+
+  # 1. Naive Forecast (Shift by 1 hour, grouped by station)
+
+Cell 160:
+df_stations['Naive_Forecast'] = df_stations.groupby('station')['PM2.5'].shift(1)
+df_stations['Moving_Avg_Forecast'] = df_stations.groupby('station')['PM2.5'].transform(lambda x: x.rolling(window=3).mean().shift(1))
+df_stations['Seasonal_Naive_Forecast'] = df_stations.groupby('station')['PM2.5'].shift(24)
+
+Cell 161:
+results = []
+
+# Assuming df_stations is a GroupBy object: df.groupby('station_id')
+for station_id, group in df_stations.groupby('station'):
+    horizons = range(1, 25)
+
+Cell 162:
+df_results
+Cell 163:
+# 1. Aggregate the results to get the mean MAE per horizon across all stations
+avg_results = df_results.groupby('Horizon').mean(numeric_only=True).reset_index()
+
+# 2. Plotting
+plt.figure(figsize=(10, 6))
+
+Cell 165:
+df_baseline.describe().transpose()
+Cell 166:
+columns_to_drop = [col for col in df_baseline.columns.to_list() if col not in ["PM2.5", "station", "datetime"]]
+Cell 167:
+from statsforecast import StatsForecast
+
+horizon = 24 # 24 hour period
+
+models = [Naive(), HistoricAverage(), WindowAverage(window_size=24), SeasonalNaive(season_length=24)]
+
+Cell 168:
+preds.head()
+Cell 169:
+
+Cell 170:
+from utilsforecast.losses import mae
+
+from utilsforecast.evaluation import evaluate
+
+
+
+Cell 171:
+evaluation = evaluation.drop(columns='station').groupby('metric').mean().reset_index()
+
+
+methods = evaluation.columns[1:].tolist()
+
+
+Cell 172:
+plt.figure(figsize=(10, 6))
+bars = plt.bar(methods, values, color=['#4C72B0', '#55A868', '#C44E52', '#8172B2'])
+
+for bar, value in zip(bars, values):
+    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05,
+
+Cell 174:
+plot_series(test, forecasts_df=preds, max_insample_length=24, id_col="station", time_col='datetime', target_col="PM2.5")
+Cell 176:
+ts_cv = TimeSeriesSplit(
+    n_splits=5,
+    gap=48,
+    max_train_size=10000,
+    test_size=1000,
+
+Cell 180:
+# T-SNE Implementation
+# X_reduced_tsne = TSNE(n_components=3, random_state=69420).fit_transform(df_clean.values)
+Cell 181:
+df_components = df_baseline[df['station'] == stations_to_keep[0]][FEATURE_COLS].drop('wd', axis=1)
+Cell 182:
+df_components
+Cell 183:
+# PCA Implementation
+X_reduced_pca = PCA(n_components=4, random_state=69420).fit_transform(df_components.values)
+Cell 184:
+# TruncatedSVD
+X_reduced_svd = TruncatedSVD(
+    n_components=len(df_components.columns.to_list()),
+    algorithm='randomized',
+    random_state=69420).fit_transform(df_components.values)
+Cell 185:
+f, (ax2, ax3) = plt.subplots(2, 1, figsize=(9,16))
+# labels = ['No Fraud', 'Fraud']
+f.suptitle('Clusters using Dimensionality Reduction', fontsize=14)
+
+
+
+Cell 187:
+from scipy.stats import pearsonr
+import warnings
+
+# ── Config ────────────────────────────────────────────────────────────────────
+TARGET    = 'PM2.5'                        # correlate against raw PM2.5
+
+Cell 188:
+# ── 1. Compute Pearson r at each lag for each feature ─────────────────────────
+# Work on a single station to keep temporal ordering clean
+df_station = df_clean.copy()
+
+results = []
+
+Cell 189:
+# ── 2. Find optimal lag per feature (highest |r|) ─────────────────────────────
+best_lags = (
+    results_df.loc[results_df.groupby('Feature')['Pearson r']
+                              .apply(lambda x: x.abs().idxmax())]
+    .sort_values('Pearson r', ascending=False)
+
+Cell 190:
+# ── 3. Heatmap — Pearson r across all features and lags ──────────────────────
+pivot = results_df.pivot(index='Feature', columns='Lag (hours)', values='Pearson r')
+
+fig, ax = plt.subplots(figsize=(18, 6))
+sns.heatmap(
+
+Cell 191:
+# ── 4. Line plot — correlation decay curves per feature ──────────────────────
+fig, ax = plt.subplots(figsize=(12, 8))
+for feature in LAG_FEATURES:
+    subset = results_df[results_df['Feature'] == feature]
+    ax.plot(subset['Lag (hours)'], subset['Pearson r'], label=feature, linewidth=1.5)
+
+Cell 193:
+categorical_columns = df.columns[df.dtypes == "category"]
+print("Categorical features:", categorical_columns.tolist())
+Cell 194:
+# from sklearn.pipeline import make_pipeline
+# from sklearn.linear_model import RidgeCV
+
+
+# alphas = np.logspace(-6, 6, 25)
+
+Cell 196:
+df_baseline.info()
+Cell 197:
+df_baseline.iloc[:, 1:22].head()
+Cell 198:
+df_tree = df_baseline.iloc[:, 1:22].drop('datetime', axis=1)
+Cell 201:
+gbrt = HistGradientBoostingRegressor(categorical_features="from_dtype", random_state=42)
+Cell 202:
+sklearnEvaluate(gbrt, df_tree.drop('PM2.5', axis = 1), df_tree['PM2.5'], cv=ts_cv, model_prop="n_iter_")
+Cell 203:
+
+Cell 204:
+
+Cell 206:
+rf_model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+Cell 207:
+sklearnEvaluate(rf_model, df_tree.drop(['PM2.5', 'wd', 'station'], axis = 1), df_tree['PM2.5'], cv=ts_cv)
+Cell 208:
+
+Cell 209:
+
+Cell 212:
+WINDOW     = 24   # use the past 24 hours as context
+THRESHOLD  = 75
+BATCH_SIZE = 128
+EPOCHS     = 32 # https://link.springer.com/article/10.1007/s11063-024-11656-3/tables/3
+Cell 213:
+import sys
+
+def get_size(obj, seen=None):
+    size = sys.getsizeof(obj)
+    if seen is None: seen = set()
+
+Cell 214:
+import gc
+
+# List of DataFrames that are likely no longer needed after preprocessing
+vars_to_delete = ['df', 'df_stations', 'df_naive_baseline', 'df_baseline', 'df_imputed', 'df_winsorized']
+
+
+Cell 215:
+df = None
+df_stations = None
+df_naive_baseline = None
+df_baseline = None
+df_imputed = None
+
+Cell 216:
+globals()
+Cell 217:
+# # ── 2. Scale features (required for neural nets) ─────────────────────────────
+# scaler    = StandardScaler()
+# X_scaled  = scaler.fit_transform(X)
+
+Cell 218:
+# # ── 3. Build sliding windows ──────────────────────────────────────────────────
+# # Each sample becomes a (WINDOW, n_features) sequence
+# def make_sequences(X, y, window):
+#     Xs, ys = [], []
+#     for i in range(window, len(X)):
+
+Cell 219:
+df_clean.shape()
+Cell 220:
+n_steps    = sequence_length
+n_features = len(NN_EATURES)
+
+print("n_steps:", n_steps)
+print("n_features:", n_features)
+Cell 222:
+METRICS = ['mae', 'mse', 'mape'] # 'rmse',
+Cell 223:
+# ── 4. Model definitions ──────────────────────────────────────────────────────
+def build_rnn():
+    m = Sequential()
+    m.add(Input(shape=(n_steps, n_features)))
+    m.add(SimpleRNN(64, return_sequences=False))
+
+Cell 225:
+# ── 5. Time-series CV ─────────────────────────────────────────────────────────
+metric_keys = ['MAE', 'MSE', 'RMSE']
+nn_metrics = {name: {m: [] for m in metric_keys} for name in builders}
+
+for fold, (train_idx, test_idx) in enumerate(ts_cv.split(train_dataset, y_seq), start=1):
+
+Cell 226:
+# ── 6. Merge with existing results and plot ───────────────────────────────────
+nn_results_df = pd.DataFrame({
+    name: {m: np.mean(v) for m, v in metrics.items()}
+    for name, metrics in nn_metrics.items()
+}).T
+
+Cell 227:
+# ── 5. Time-series CV ─────────────────────────────────────────────────────────
+metric_keys = ['MAE', 'MSE', 'RMSE']
+nn_metrics = {name: {m: [] for m in metric_keys} for name in builders}
+
+fold_summary = f"Fold "
+
+Cell 229:
+
+Cell 230:
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model = build_rnn()
+
+Cell 231:
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model = build_lstm()
+
+Cell 232:
+callbacks = [
+    keras.callbacks.ModelCheckpoint("jena_dense.keras", save_best_only=True)
+]
+
+model = build_cnn()
+
+Cell 233:
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18, 6))
+plt.plot(y[:, 0, 0])
+
+Cell 234:
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18, 6))
+plt.plot(y)
+
+Cell 235:
+x_test.shape
+Cell 236:
+y_pred.shape
+Cell 237:
+x_test, y = next(test_ds.as_numpy_iterator())
+y_pred = model.predict(x_test)
+
+plt.figure(figsize=(18, 6))
+plt.plot(y[:, 0, 0])
+
+Cell 239:
+from tensorflow.keras.regularizers import l1, l2, l1_l2
+from tensorflow.keras.layers import BatchNormalization
+
+Cell 240:
+# ── Experiment variants ───────────────────────────────────────────────────────
+def build_baseline():
+    """Large network, no regularization — expected to overfit"""
+    m = Sequential([
+        LSTM(128, input_shape=(n_steps, n_features), return_sequences=True),
+
+Cell 241:
+
+variants = {
+    'Baseline (no reg)': build_baseline,
+    'Reduced Size':      build_reduced,
+    'L1 + L2':           build_l1_l2,
+
+Cell 242:
+# ── Run experiment: one fold only for speed, use last fold for fair comparison ─
+train_idx, test_idx = list(ts_cv.split(X_seq, y_seq))[-1]   # final fold
+X_train_e, X_test_e = X_seq[train_idx], X_seq[test_idx]
+y_train_e, y_test_e = y_seq[train_idx], y_seq[test_idx]
+
+
+Cell 243:
+# ── Results table ─────────────────────────────────────────────────────────────
+exp_df = pd.DataFrame(exp_results).T
+print("\nOverfitting Experiment Results:")
+print(exp_df.to_string(float_format='{:.3f}'.format))
+
+
+Cell 244:
+# ── Plot 2: F1 comparison bar chart ──────────────────────────────────────────
+exp_df[['F1', 'Precision', 'Recall', 'Accuracy']].plot(
+    kind='bar', figsize=(10, 5), ylim=(0, 1), rot=15
+)
+plt.title('Overfitting Experiment — Test Metrics Comparison')
+
+Cell 245:
+
+Cell 246:
+
+Cell 248:
+from sklearn.model_selection import GridSearchCV
+
+# Define the model
+rf = RandomForestRegressor(random_state=42)
